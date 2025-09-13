@@ -8,20 +8,6 @@ interface PostRequestBody {
 }
 
 
-let defaultGroupCache : string   | null = null;
-
-// async function getDefaultGroup(): Promise<string | null> {
-
-//     if (defaultGroupCache){
-//         return defaultGroupCache;
-
-//     }
-
-//     const defaultGroupSetting = await prisma.radgroupreply.findFirst({
-        
-//     })
-    
-// }
 
 export async function POST(req: NextRequest) {
 
@@ -31,7 +17,26 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: 'Username dan password harus diisi' }, { status: 400 });
         }
 
+        const userExists = await prisma.radcheck.findFirst({
+            where: {
+                username: username
+            }
+        })
 
+        if (userExists) {
+            return NextResponse.json({ message: 'User sudah ada' }, { status: 400 });
+        }
+        
+        const assignedGroup = groupname || "default";
+        const groupExists = await prisma.radgroupreply.findFirst({
+            where: {
+                groupname: assignedGroup
+            }
+        })
+
+        if (!groupExists) {
+            return NextResponse.json({ message: 'Group tidak ditemukan' }, { status: 400 });
+        }
 
         const result = await prisma.$transaction([
             prisma.radcheck.create({
@@ -45,7 +50,7 @@ export async function POST(req: NextRequest) {
             prisma.radusergroup.create({
                 data: {
                     username: username,
-                    groupname: groupname,
+                    groupname: assignedGroup,
                 },
             }),
         ]);
@@ -57,11 +62,11 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-
     try{
-        const users = await prisma.radcheck.findMany({
+        const users = await prisma.radusergroup.findMany({
             select: {
                 username: true,
+                groupname: true
             },
             distinct: ['username'],
             orderBy: {
