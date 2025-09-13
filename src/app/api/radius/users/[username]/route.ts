@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-/**
- * Melihat Detail User Spesifik
- */
 export async function GET(
   context: { params: Promise<{ username: string }> }
 ) {
   try {
-    // Harus await dulu
     const { username } = await context.params;
 
     const checkAttributes = await prisma.radcheck.findMany({
