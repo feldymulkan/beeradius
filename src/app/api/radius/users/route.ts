@@ -10,7 +10,6 @@ interface PostRequestBody {
 
 
 export async function POST(req: NextRequest) {
-
     try{
         const { username, password, groupname } = await req.json() as PostRequestBody;
         if (!username || !password) {
@@ -22,7 +21,6 @@ export async function POST(req: NextRequest) {
                 username: username
             }
         })
-
         if (userExists) {
             return NextResponse.json({ message: 'User sudah ada' }, { status: 400 });
         }
@@ -33,11 +31,9 @@ export async function POST(req: NextRequest) {
                 groupname: assignedGroup
             }
         })
-
         if (!groupExists) {
             return NextResponse.json({ message: 'Group tidak ditemukan' }, { status: 400 });
         }
-
         const result = await prisma.$transaction([
             prisma.radcheck.create({
                 data: {
