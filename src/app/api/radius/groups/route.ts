@@ -9,20 +9,44 @@ interface PostRequestBody {
 }
 
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     try{
-        const groups = await prisma.radgroupreply.findMany({
-            select: {
-                groupname: true,
-                attribute: true,
-                op: true,
-                value: true,
-            },
-            distinct: ['groupname'],
-            orderBy: {
-                groupname: 'asc',
-            }
-        });
+        const { searchParams } = new URL(req.url);
+        const query = searchParams.get('q');
+
+        let groups;
+        if (query) {
+            groups = await prisma.radgroupreply.findMany({
+                where: {
+                    groupname: {
+                        contains: query,
+                    },
+                },
+                select: {
+                    groupname: true,
+                    attribute: true,
+                    op: true,
+                    value: true,
+                },
+                distinct: ['groupname'],
+                orderBy: {
+                    groupname: 'asc',
+                }
+            })
+        }else{
+            groups = await prisma.radgroupreply.findMany({
+                select: {
+                    groupname: true,
+                    attribute: true,
+                    op: true,
+                    value: true,
+                },
+                distinct: ['groupname'],
+                orderBy: {
+                    groupname: 'asc',
+                }
+            });
+        }
 
         return NextResponse.json({groups}, {status: 200});
     }catch (error: any) {
