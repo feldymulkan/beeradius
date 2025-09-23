@@ -4,10 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
 // Fungsi GET Anda sudah bagus, tidak ada perubahan
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { username: string } }
-) {
+export async function GET(req: NextRequest, props: { params: Promise<{ username: string }> }) {
+  const params = await props.params;
   try {
     const { username } = params;
     const [checkAttributes, userGroup, userInfo] = await Promise.all([
@@ -22,7 +20,7 @@ export async function GET(
 
     const userData = {
       username,
-      group: userGroup?.groupname || "Tidak terdaftar di grup",
+      group: userGroup?.groupname || "N/A",
       fullName: userInfo?.fullName || "N/A",
       department: userInfo?.department || "N/A",
       checkAttributes: checkAttributes.map((attr) => ({
@@ -48,10 +46,8 @@ interface UpdateRequestBody {
 /**
  * Mengubah data user (password, grup, atau info)
  */
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: { username: string } }
-) {
+export async function PUT(req: NextRequest, props: { params: Promise<{ username: string }> }) {
+  const params = await props.params;
   try {
     const { username } = params;
     const body: UpdateRequestBody = await req.json();
@@ -119,10 +115,8 @@ export async function PUT(
 
 
 // Fungsi DELETE Anda sudah bagus, tidak ada perubahan
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { username: string } }
-) {
+export async function DELETE(req: NextRequest, props: { params: Promise<{ username: string }> }) {
+  const params = await props.params;
   try {
     const { username } = params;
     const result = await prisma.$transaction([
