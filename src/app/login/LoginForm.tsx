@@ -1,0 +1,67 @@
+// src/app/login/LoginForm.tsx
+
+"use client";
+
+import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
+
+export default function LoginForm() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    const result = await signIn("credentials", {
+      username,
+      password,
+      redirect: false,
+    });
+    if (result?.error) {
+      setError("Username atau password salah!");
+    } else if (result?.ok) {
+      router.push("/");
+    }
+  };
+
+  return (
+    <div className="hero bg-base-200 min-h-screen">
+      <div className="hero-content w-full max-w-sm">
+        <div className="card bg-base-100 w-full shrink-0 shadow-2xl">
+          <form className="card-body" onSubmit={handleSubmit}>
+            <h1 className="text-2xl font-bold text-center">Beeradius</h1>
+            <div className="form-control">
+              <label className="label"><span className="label-text">Username</span></label>
+              <input
+                type="text"
+                className="input input-bordered"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            </div>
+            <div className="form-control">
+              <label className="label"><span className="label-text">Password</span></label>
+              <input
+                type="password"
+                className="input input-bordered"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            {error && <p className="text-error text-sm">{error}</p>}
+            <div className="form-control mt-4 text-center">
+              <button type="submit" className="btn btn-primary">Login</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
