@@ -8,7 +8,7 @@ export default function Navbar() {
   const { data: session } = useSession();
 
   return (
-    <div className="navbar bg-base-100 shadow-md">
+    <div className="navbar bg-base-200 shadow-md">
       <div className="flex-1">
         {/* ---- INI BAGIAN YANG DITAMBAHKAN ---- */}
         <label

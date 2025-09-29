@@ -16,8 +16,8 @@ const UsersIcon = () => (
 
 export default function Sidebar() {
   return (
-    <ul className="menu p-4 w-60 min-h-full bg-base-100 text-base-content">
-      <li className="menu-title">Menu</li>
+    <ul className="menu p-4 w-60 min-h-full bg-gray-800 text-gray-200">
+      <li className="menu-title text-white">Menu</li>
 
       {/* Menu dengan highlight */}
       <li>
