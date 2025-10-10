@@ -27,7 +27,7 @@ export default function Sidebar() {
         </ActiveLink>
       </li>
       <li>
-        <ActiveLink href="/users">
+        <ActiveLink href="/radius-users">
           <UsersIcon />
           Users
         </ActiveLink>

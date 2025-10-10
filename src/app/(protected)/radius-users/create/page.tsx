@@ -89,7 +89,7 @@ export default function CreateUserPage() {
   // 3. Fungsi untuk menutup modal dan kembali ke halaman users
   const handleCloseModalAndRedirect = () => {
     setIsModalOpen(false);
-    router.push("/users");
+    router.push("/radius-users");
   };
   const handleRecreate = () => {
     resetForm();
