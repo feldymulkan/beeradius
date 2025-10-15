@@ -3,47 +3,67 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+// Definisikan props yang akan diterima komponen
 type Props = {
-    userId: String;
+  itemId: string | number;
+  apiEndpoint: string;
+  itemName: string;
+  entityType: string;
+  onSuccess?: () => void;
 };
 
-export default function DeleteUserButton({ userId }: Props) {
-    const [isLoading, setIsLoading] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);  
-    const router = useRouter();
+export default function DeleteButton({ itemId, apiEndpoint, itemName, entityType, onSuccess }: Props) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);  
+  const router = useRouter();
 
-    const handleDelete = async() => {
-        setIsLoading(true);
-        try{
-            const res = await fetch(`/api/radius/users/${userId}`, {
-                method: "DELETE"
-            })
-            if (!res.ok) {
-                throw new Error("Failed to delete user");
-            }
-            setIsModalOpen(false);
-            router.refresh()
-        }catch(error){
-            console.error(error);
-        }finally{
-            setIsLoading(false);
-        }
-    };
+  const handleDelete = async() => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`${apiEndpoint}/${itemId}`, {
+        method: "DELETE"
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || `Gagal menghapus ${entityType}.`);
+      }
+      setIsModalOpen(false);
+      
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.refresh();
+      }
+    } catch(error: unknown) {
+      if (error instanceof Error) {
+        alert(`Error: ${error.message}`);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    return (
-         <>
+  return (
+    <>
       <button className="btn btn-sm btn-error" onClick={() => setIsModalOpen(true)}>
         Delete
       </button>
 
-      {/* Modal Konfirmasi */}
-      <input type="checkbox" className="modal-toggle" checked={isModalOpen} readOnly />
+      {/* --- BAGIAN YANG DIPERBAIKI --- */}
+      {/* 1. Tambahkan kembali input checkbox yang tersembunyi */}
+      <input 
+        type="checkbox" 
+        className="modal-toggle" 
+        checked={isModalOpen} 
+        onChange={() => setIsModalOpen(!isModalOpen)} // Tambahkan onChange agar bisa dikontrol
+      />
+      {/* 2. Hapus properti 'open' dari div modal */}
       <div className="modal modal-bottom sm:modal-middle" role="dialog">
         <div className="modal-box">
           <h3 className="font-bold text-lg">Konfirmasi Penghapusan</h3>
-          <p className="py-4">Apakah Anda yakin ingin menghapus user ini? Tindakan ini tidak dapat dibatalkan.</p>
+          <p className="py-4">Apakah Anda yakin ingin menghapus {entityType} '{itemName}'? Tindakan ini tidak dapat dibatalkan.</p>
           <div className="modal-action">
-            <button className="btn" onClick={() => setIsModalOpen(false)}>Batal</button>
+            <button className="btn" onClick={() => setIsModalOpen(false)} disabled={isLoading}>Batal</button>
             <button className="btn btn-error" onClick={handleDelete} disabled={isLoading}>
               {isLoading && <span className="loading loading-spinner"></span>}
               Ya, Hapus
@@ -51,6 +71,7 @@ export default function DeleteUserButton({ userId }: Props) {
           </div>
         </div>
       </div>
+      {/* ----------------------------- */}
     </>
-    );
+  );
 };
