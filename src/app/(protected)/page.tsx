@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import Link from "next/link";
+import Image from "next/image"; // <-- 1. Import komponen Image
 
 // Ikon untuk tombol dan statistik
 const UserGroupIcon = () => (
@@ -59,7 +60,14 @@ export default async function DashboardPage() {
           <div className="stat-figure text-accent">
             <div className="avatar online">
               <div className="w-16 rounded-full">
-                <img src="https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.jpg" />
+                {/* --- 2. Perubahan di sini --- */}
+                <Image 
+                  src="https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.jpg" 
+                  alt="User Avatar"
+                  width={64}
+                  height={64}
+                  className="rounded-full"
+                />
               </div>
             </div>
           </div>

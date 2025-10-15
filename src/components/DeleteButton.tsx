@@ -49,19 +49,18 @@ export default function DeleteButton({ itemId, apiEndpoint, itemName, entityType
         Delete
       </button>
 
-      {/* --- BAGIAN YANG DIPERBAIKI --- */}
-      {/* 1. Tambahkan kembali input checkbox yang tersembunyi */}
       <input 
         type="checkbox" 
         className="modal-toggle" 
         checked={isModalOpen} 
-        onChange={() => setIsModalOpen(!isModalOpen)} // Tambahkan onChange agar bisa dikontrol
+        onChange={() => setIsModalOpen(!isModalOpen)}
       />
-      {/* 2. Hapus properti 'open' dari div modal */}
       <div className="modal modal-bottom sm:modal-middle" role="dialog">
         <div className="modal-box">
           <h3 className="font-bold text-lg">Konfirmasi Penghapusan</h3>
-          <p className="py-4">Apakah Anda yakin ingin menghapus {entityType} '{itemName}'? Tindakan ini tidak dapat dibatalkan.</p>
+          {/* --- PERBAIKAN DI SINI --- */}
+          {/* Mengganti ' dengan &apos; untuk memperbaiki error ESLint */}
+          <p className="py-4">Apakah Anda yakin ingin menghapus {entityType} &apos;{itemName}&apos;? Tindakan ini tidak dapat dibatalkan.</p>
           <div className="modal-action">
             <button className="btn" onClick={() => setIsModalOpen(false)} disabled={isLoading}>Batal</button>
             <button className="btn btn-error" onClick={handleDelete} disabled={isLoading}>
@@ -71,7 +70,6 @@ export default function DeleteButton({ itemId, apiEndpoint, itemName, entityType
           </div>
         </div>
       </div>
-      {/* ----------------------------- */}
     </>
   );
 };
