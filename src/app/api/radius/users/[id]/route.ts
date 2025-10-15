@@ -57,6 +57,7 @@ export async function GET(
 
 // Interface untuk body request PUT yang fleksibel
 interface UpdateRequestBody {
+  newUsername?: string;
   newPassword?: string;
   passwordType?: 'md5' | 'sha1' | 'cleartext';
   groupname?: string;
@@ -78,58 +79,77 @@ export async function PUT(
       return NextResponse.json({ message: "ID tidak valid." }, { status: 400 });
     }
 
+    // 1. Ambil username LAMA dari database untuk referensi
     const initialUser = await prisma.radcheck.findUnique({ where: { id } });
     if (!initialUser) {
       return NextResponse.json({ message: `User dengan ID '${id}' tidak ditemukan.` }, { status: 404 });
     }
+    const oldUsername = initialUser.username;
     
-    const { username } = initialUser;
+    // 2. Ambil semua data BARU dari body request
     const body: UpdateRequestBody = await request.json();
-    
-    // --- BAGIAN YANG DIPERBAIKI ---
-    // Gunakan updateMany untuk mengubah password, ini akan menjaga ID tetap sama
-    if (body.newPassword && body.newPassword.length > 0) {
-      const passwordType = body.passwordType || 'cleartext';
-      let attribute = 'Cleartext-Password';
-      let hashedPassword = body.newPassword;
+    const { newUsername, fullName, department, groupname, newPassword, passwordType } = body;
 
-      if (passwordType === 'md5') {
-        attribute = 'MD5-Password';
-        hashedPassword = crypto.createHash('md5').update(body.newPassword).digest('hex');
-      }
-      
-      await prisma.radcheck.updateMany({
-        where: {
-          username: username,
-          attribute: { contains: "Password" } // Cari atribut password yang ada
-        },
-        data: {
-          attribute: attribute, // Ganti tipe password jika perlu
-          value: hashedPassword, // Ganti nilainya
-          op: ':='
-        }
+    // 3. PENTING: Jika username diubah, cek dulu apakah nama baru sudah dipakai
+    if (newUsername && oldUsername !== newUsername) {
+      const existingUser = await prisma.radcheck.findFirst({
+        where: { username: newUsername },
       });
+      if (existingUser) {
+        return NextResponse.json({ message: `Username '${newUsername}' sudah digunakan.` }, { status: 409 }); // 409 Conflict
+      }
+    }
+    
+    // Tentukan username final yang akan digunakan di semua operasi
+    const finalUsername = newUsername || oldUsername;
+    const prismaOperations: Prisma.PrismaPromise<any>[] = [];
+
+    // --- Rangkai semua operasi dalam satu transaksi ---
+
+    // 4. Logika untuk mengubah username di SEMUA tabel terkait
+    if (newUsername && oldUsername !== newUsername) {
+      // Perbarui username di tabel radcheck, radusergroup, dan userinfo
+      prismaOperations.push(prisma.radcheck.updateMany({ where: { username: oldUsername }, data: { username: finalUsername } }));
+      prismaOperations.push(prisma.radusergroup.updateMany({ where: { username: oldUsername }, data: { username: finalUsername } }));
+      // Untuk userinfo, kita perlu upsert karena bisa jadi data belum ada
+      // Kita hapus yang lama dan buat yang baru untuk menjaga konsistensi
+      const oldUserInfo = await prisma.userinfo.findUnique({ where: { username: oldUsername } });
+      if (oldUserInfo) {
+          prismaOperations.push(prisma.userinfo.delete({ where: { username: oldUsername } }));
+      }
     }
 
-    // --- Logika lain bisa digabung dalam satu transaction ---
-    const otherOperations: Prisma.PrismaPromise<any>[] = [];
-    if (body.groupname) {
-      otherOperations.push(prisma.radusergroup.deleteMany({ where: { username } }));
-      otherOperations.push(prisma.radusergroup.create({ data: { username, groupname: body.groupname, priority: 1 } }));
+    // 5. Logika untuk mengubah info user (nama lengkap & departemen)
+    prismaOperations.push(prisma.userinfo.upsert({
+      where: { username: finalUsername },
+      update: { fullName, department },
+      create: { username: finalUsername, fullName: fullName || "", department: department || "" }
+    }));
+
+    // 6. Logika untuk mengubah grup
+    if (groupname) {
+      // Hapus keanggotaan grup lama dan buat yang baru
+      prismaOperations.push(prisma.radusergroup.deleteMany({ where: { username: finalUsername } }));
+      prismaOperations.push(prisma.radusergroup.create({ data: { username: finalUsername, groupname, priority: 1 } }));
     }
-    if (body.fullName !== undefined || body.department !== undefined) {
-      otherOperations.push(prisma.userinfo.upsert({
-        where: { username },
-        update: { fullName: body.fullName, department: body.department },
-        create: { username, fullName: body.fullName || "", department: body.department || "" }
+
+    // 7. Logika untuk mengubah password
+    if (newPassword && newPassword.length > 0) {
+      const passwordAttr = passwordType === 'md5' ? 'MD5-Password' : 'Cleartext-Password';
+      let hashedPassword = newPassword;
+      if (passwordType === 'md5') {
+        hashedPassword = crypto.createHash('md5').update(newPassword).digest('hex');
+      }
+      prismaOperations.push(prisma.radcheck.updateMany({
+        where: { username: finalUsername, attribute: { contains: 'Password' } },
+        data: { attribute: passwordAttr, op: ':=', value: hashedPassword }
       }));
     }
 
-    if (otherOperations.length > 0) {
-      await prisma.$transaction(otherOperations);
-    }
+    // 8. Jalankan semua operasi dalam satu transaksi yang aman
+    await prisma.$transaction(prismaOperations);
 
-    return NextResponse.json({ message: `Data untuk user ${username} berhasil diubah` }, { status: 200 });
+    return NextResponse.json({ message: `Data untuk user ${finalUsername} berhasil diubah` }, { status: 200 });
     
   } catch (error: unknown) {
     let errorMessage = "Terjadi kesalahan pada server.";

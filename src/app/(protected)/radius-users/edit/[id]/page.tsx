@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { EditFormSkeleton } from "@/components/Skleton"; // Pastikan path dan nama file skeleton Anda benar
+import { toast } from "react-hot-toast"; // 1. Impor toast
 
 // Definisikan tipe untuk data grup
 type Group = {
@@ -12,65 +14,79 @@ type Group = {
 export default function EditUserPage() {
   const router = useRouter();
   const params = useParams();
-  const id = params.id as string; // Ambil ID dari URL
+  const id = params.id as string;
 
   // State untuk setiap field di form
-  const [username, setUsername] = useState("");
+  const [originalUsername, setOriginalUsername] = useState(""); // Untuk judul halaman
+  const [username, setUsername] = useState("");         // Untuk input username yang bisa diubah
   const [fullName, setFullName] = useState("");
   const [department, setDepartment] = useState("");
   const [groupname, setGroupname] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
-  const [groups, setGroups] = useState<Group[]>([]); // State untuk daftar grup
+  const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isFetching, setIsFetching] = useState(true);
+  const [error, setError] = useState<string | null>(null); // State error masih berguna untuk logika internal
 
-  // 1. Fetch data user yang akan diedit saat halaman dimuat
+  // Fetch data user yang akan diedit
   useEffect(() => {
     if (id) {
       const fetchUserData = async () => {
+        setIsFetching(true);
         try {
           const res = await fetch(`/api/radius/users/${id}`);
           if (!res.ok) throw new Error("Gagal memuat data user.");
           const data = await res.json();
-          // Isi state dengan data yang ada
+          
+          setOriginalUsername(data.username);
           setUsername(data.username);
           setFullName(data.fullName || "");
           setDepartment(data.department || "");
           setGroupname(data.group || "");
         } catch (err: unknown) {
-          if (err instanceof Error) setError(err.message);
+          if (err instanceof Error) {
+            setError(err.message);
+            toast.error(err.message); // Tampilkan error fetch dengan toast
+          }
+        } finally {
+          setIsFetching(false);
         }
       };
       fetchUserData();
     }
   }, [id]);
 
-  // 2. Fetch daftar grup untuk dropdown
+  // Fetch daftar grup untuk dropdown
   useEffect(() => {
     const fetchGroups = async () => {
       try {
         const res = await fetch('/api/radius/groups');
+        if (!res.ok) return;
         const data = await res.json();
-        setGroups(data.groups || []);
+        setGroups(Array.isArray(data) ? data : data.groups || []);
       } catch (err) {
-        console.error("Gagal memuat grup:", err);
+        console.error("Gagal memuat daftar grup:", err);
       }
     };
     fetchGroups();
   }, []);
 
-  // 3. Handle pengiriman form
+  // Handle pengiriman form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
 
-    // Siapkan body request, hanya kirim field yang diisi
-    const body: { [key: string]: string } = { fullName, department, groupname };
+    const body: { [key: string]: any } = { 
+      newUsername: username,
+      fullName, 
+      department, 
+      groupname 
+    };
     if (newPassword) {
       body.newPassword = newPassword;
-      body.passwordType = 'cleartext'; // Sesuaikan jika perlu
+      body.passwordType = 'cleartext';
     }
 
     try {
@@ -85,19 +101,32 @@ export default function EditUserPage() {
         throw new Error(errorData.message || "Gagal mengupdate user.");
       }
 
-      // Arahkan kembali ke halaman detail setelah sukses
-      router.push(`/radius-users/detail/${id}`);
-      router.refresh();
+      // 2. Tampilkan notifikasi sukses
+      toast.success("Perubahan berhasil disimpan!");
+
+      // 3. Beri jeda sejenak lalu redirect
+      setTimeout(() => {
+        router.push(`/radius-users/detail/${id}`);
+        router.refresh();
+      }, 1200); // Jeda 1.2 detik
+
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
+      if (err instanceof Error) {
+        // 4. Tampilkan notifikasi error
+        toast.error(err.message);
+        setError(err.message);
+      }
+      setIsLoading(false); // Hentikan loading jika terjadi error
+    } 
+    // Jangan set isLoading ke false di 'finally' agar tombol tetap nonaktif selama redirect
   };
+
+  if (isFetching) return <EditFormSkeleton />;
+  if (error && !isFetching) return <div className="alert alert-error">{error}</div>;
 
   return (
     <div className="prose lg:prose-xl">
-      <h1>Edit User: {username}</h1>
+      <h1>Edit User: {originalUsername}</h1>
       <div className="not-prose">
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
@@ -105,36 +134,33 @@ export default function EditUserPage() {
               ← Kembali ke Detail
             </Link>
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-              {/* Field Nama Lengkap */}
+              <div className="form-control w-full">
+                <label className="label"><span className="label-text font-bold">Username</span></label>
+                <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="input input-bordered w-full" required />
+              </div>
+              
               <div className="form-control w-full">
                 <label className="label"><span className="label-text">Nama Lengkap</span></label>
                 <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className="input input-bordered w-full" />
               </div>
 
-              {/* Field Departemen */}
               <div className="form-control w-full">
                 <label className="label"><span className="label-text">Departemen</span></label>
                 <input type="text" value={department} onChange={(e) => setDepartment(e.target.value)} className="input input-bordered w-full" />
               </div>
 
-              {/* Field Grup */}
               <div className="form-control w-full">
-                <label className="select">
-                <span className="label">Group</span>
-                <select value={groupname} onChange={(e) => setGroupname(e.target.value)}>
-                    <option disabled value="">pilih group</option>
+                <label className="label"><span className="label-text">Grup</span></label>
+                <select className="select select-bordered" value={groupname} onChange={(e) => setGroupname(e.target.value)}>
+                    <option value="">-- Tidak ada grup --</option>
                     {groups.map(g => <option key={g.groupname} value={g.groupname}>{g.groupname}</option>)}
                 </select>
-                </label>
               </div>
 
-              {/* Field Password Baru */}
               <div className="form-control w-full">
                 <label className="label"><span className="label-text">Password Baru (Opsional)</span></label>
                 <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="input input-bordered w-full" placeholder="Kosongkan jika tidak ingin diubah" />
               </div>
-
-              {error && <div className="alert alert-error">{error}</div>}
 
               <div className="card-actions justify-end pt-4">
                 <button type="submit" className="btn btn-primary" disabled={isLoading}>
