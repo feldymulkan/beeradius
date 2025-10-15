@@ -1,22 +1,17 @@
 import Link from "next/link";
 import { getRadiusUserDetailsById } from "@/lib/data";
-import DeleteRadiusUserButton from "@/components/DeleteRadiusUserButton";
-
-// Definisikan tipe untuk atribut agar kode lebih aman
+// 1. Import the new wrapper compone
+import UserDeleteAction from "@/components/UserDeleteActions";
 type RadiusAttribute = {
   attribute: string;
   op: string;
   value: string;
 };
 
-// Perbaiki tipe 'params' di sini dengan menambahkan 'Promise'
 export default async function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  
-  // 'await' params untuk mendapatkan nilainya
   const resolvedParams = await params;
   const userId = parseInt(resolvedParams.id);
 
-  // Lakukan pengecekan apakah ID valid setelah di-parse
   if (isNaN(userId)) {
     return (
       <div className="prose text-center mx-auto mt-10">
@@ -29,7 +24,6 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
     );
   }
   
-  // Panggil fungsi pengambilan data dengan ID yang sudah valid
   const userData = await getRadiusUserDetailsById(userId);
 
   return (
@@ -39,9 +33,11 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
             <div className="flex justify-end gap-2">
-              {/* Gunakan 'resolvedParams.id' untuk link Edit */}
               <Link href={`/radius-users/edit/${resolvedParams.id}`} className="btn btn-sm btn-info">Edit</Link>
-              <DeleteRadiusUserButton userId={userData.id} />
+              
+              {/* 2. Replace the old button with the new wrapper */}
+              <UserDeleteAction userId={userData.id} username={userData.username} />
+
               <Link href="/radius-users" className="btn btn-sm btn-ghost">← Kembali</Link>
             </div>
             
