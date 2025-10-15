@@ -54,3 +54,38 @@ export async function GET(req: NextRequest) {
     }
     
 }
+
+export async function POST(request:NextRequest) {
+    try{
+        const body = await request.json();
+        const {groupname, attributes} = body;
+
+        if (!groupname || !attributes || !Array.isArray(attributes) || attributes.length === 0) {
+            return NextResponse.json({ message: 'Data tidak lengkap' }, { status: 400 });
+        }
+
+        const existingGroup = await prisma.radgroupreply.findFirst({ where: { groupname } });
+        if (existingGroup) {
+            return NextResponse.json({ message: `Grup '{groupname}' sudah ada` }, { status: 409 });
+        }
+
+        const dataToCreate = attributes.map((attribute: PostRequestBody) => ({
+            groupname,
+            attribute: attribute.attribute,
+            op: attribute.op,
+            value: attribute.value,
+        }));
+
+        await prisma.radgroupreply.createMany({ data: dataToCreate });
+        return NextResponse.json({ message: 'Group berhasil disimpan' }, { status: 201 });
+
+
+    }catch(error: unknown){
+        let errorMessage = 'Maaf terjadi kesalahan pada server';
+        if (error instanceof Error) {
+            errorMessage = error.message;
+        }
+        return NextResponse.json({ message: "Gagal Membuat Group: ", errorMessage }, { status: 500 });
+    }
+    
+}
