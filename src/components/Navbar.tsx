@@ -62,7 +62,7 @@ export default function Navbar() {
                 </a>
               </li>
               <li>
-                <a>Pengaturan</a>
+                <a href="/settings/admin">Pengaturan</a>
               </li>
               <li>
                 <button onClick={() => signOut({ callbackUrl: "/login" })}>
