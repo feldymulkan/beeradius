@@ -138,7 +138,7 @@ model radusergroup {
 model userinfo {
   id        Int    @id @default(autoincrement())
   username  String  @unique @db.VarChar(64)
-  fullName  String  @default("") @db.VarChar(64)
+  fullName  String  @default("") @db.VarChar(255)
   department  String @default("") @db.VarChar(64)
 }
 
