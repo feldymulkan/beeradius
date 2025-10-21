@@ -45,7 +45,12 @@ export default function GroupClientWrapper({ groups, page, pageSize, totalPages 
 
   return (
     <div>
-      <DataTable data={groups} columns={columns} />
+      <DataTable 
+        data={groups} 
+        columns={columns} 
+        page={page}
+        pageSize={pageSize}
+        />
       <PaginationControls
         currentPage={page}
         totalPages={totalPages}

@@ -1,6 +1,6 @@
 import TableSkeleton from "@/components/Skleton";
 
-export default function Loading(){
+export default function Loading(){  
     return (
         <TableSkeleton />
     )

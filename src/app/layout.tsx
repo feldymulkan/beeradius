@@ -1,16 +1,35 @@
-import type { Metadata } from "next";
+import type { Metadata } from "next"; // Pastikan ini ada
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
-// 1. Impor Toaster dari library react-hot-toast
 import { Toaster } from 'react-hot-toast';
 
 const inter = Inter({ subsets: ["latin"] });
 
+// [PERBAIKAN]: Menggunakan '=' untuk inisialisasi, bukan ':'
 export const metadata: Metadata = {
   title: "BeeRadius Admin",
   description: "RADIUS Management Panel",
 };
+
+// Skrip ini akan berjalan sebelum React/Next.js
+// untuk mencegah "flash" tema yang salah.
+const ThemeLoaderScript = () => {
+  const script = `
+    (function() {
+      const THEME_KEY = 'theme'; // Key yang Anda gunakan di ThemeSwitcher
+      const savedTheme = localStorage.getItem(THEME_KEY);
+      const fallbackTheme = 'dark'; // Tema default jika tidak ada
+      if (savedTheme) {
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      } else {
+        document.documentElement.setAttribute('data-theme', fallbackTheme);
+      }
+    })();
+  `;
+  return <script dangerouslySetInnerHTML={{ __html: script }} />;
+};
+
 
 export default function RootLayout({
   children,
@@ -18,13 +37,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" data-theme="dark">
+    <html lang="en">
       <body className={inter.className}>
-        {/* 2. Tambahkan komponen Toaster di sini */}
-        {/* Ini akan menjadi 'wadah' untuk semua notifikasi toast Anda */}
-        <Toaster position="top-center" reverseOrder={false} />
+        {/* Skrip pemuat tema DITARUH DI SINI, di atas segalanya */}
+        <ThemeLoaderScript />
 
-        {/* Komponen Providers Anda tetap di sini, membungkus children */}
+        <Toaster position="top-center" reverseOrder={false} />
         <Providers>{children}</Providers>
       </body>
     </html>

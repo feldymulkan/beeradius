@@ -22,8 +22,6 @@ export default async function RadiusGroupsPage({
     distinct: ['groupname'],
     select: { groupname: true },
   });
-
-  // 2. Gabungkan dan buat daftar unik, sambil membersihkan spasi
   const allGroupNames = new Set([
     ...replyGroups.map(g => g.groupname.trim()),
     ...checkGroups.map(g => g.groupname.trim())

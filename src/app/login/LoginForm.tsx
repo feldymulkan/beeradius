@@ -1,10 +1,11 @@
-// src/app/login/LoginForm.tsx
-
 "use client";
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+// --- 1. TAMBAHKAN IMPOR INI ---
+import ThemeSwitcher from "@/components/ThemeSwitcher"; 
+// (Asumsi path-nya benar, sesuaikan jika perlu)
 
 export default function LoginForm() {
   const [username, setUsername] = useState("");
@@ -28,7 +29,15 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="hero bg-base-200 min-h-screen">
+    // Tambahkan 'relative' agar 'absolute' di bawah berfungsi
+    <div className="hero min-h-screen bg-base-200 relative">
+      {/* --- 2. TAMBAHKAN THEME SWITCHER DI SINI --- */}
+      {/* Ini akan menempatkannya di pojok kanan atas layar */}
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeSwitcher />
+      </div>
+      {/* ------------------------------------------- */}
+
       <div className="hero-content w-full max-w-sm">
         <div className="card bg-base-100 w-full shrink-0 shadow-2xl">
           <form className="card-body" onSubmit={handleSubmit}>

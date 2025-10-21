@@ -14,7 +14,7 @@ type Props = {
 
 export default function DeleteButton({ itemId, apiEndpoint, itemName, entityType, onSuccess }: Props) {
   const [isLoading, setIsLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);  
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const router = useRouter();
 
   const handleDelete = async() => {
@@ -28,7 +28,6 @@ export default function DeleteButton({ itemId, apiEndpoint, itemName, entityType
         throw new Error(errorData.message || `Gagal menghapus ${entityType}.`);
       }
       setIsModalOpen(false);
-      
       if (onSuccess) {
         onSuccess();
       } else {
@@ -49,10 +48,10 @@ export default function DeleteButton({ itemId, apiEndpoint, itemName, entityType
         Delete
       </button>
 
-      <input 
-        type="checkbox" 
-        className="modal-toggle" 
-        checked={isModalOpen} 
+      <input
+        type="checkbox"
+        className="modal-toggle"
+        checked={isModalOpen}
         onChange={() => setIsModalOpen(!isModalOpen)}
       />
       <div className="modal modal-bottom sm:modal-middle" role="dialog">

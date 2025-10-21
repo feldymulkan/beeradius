@@ -23,8 +23,8 @@ type Props = {
 export default function UserClientWrapper({ users, page, pageSize, totalPages }: Props) {
   // Definisikan 'columns' di dalam Client Component ini
   const columns: ColumnDef<User>[] = [
-    { 
-      header: "Username", 
+    {
+      header: "Username",
       accessorKey: "username" 
     },
     { 
@@ -55,7 +55,12 @@ export default function UserClientWrapper({ users, page, pageSize, totalPages }:
 
   return (
     <div>
-      <DataTable data={users} columns={columns} />
+      <DataTable 
+        data={users} 
+        columns={columns} 
+        page={page}
+        pageSize= {pageSize}
+        />
       <PaginationControls
         currentPage={page}
         totalPages={totalPages}

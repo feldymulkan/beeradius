@@ -44,7 +44,6 @@ export default function OnlineUserCount() {
       <div className="stat-value text-success">
         {isLoading ? <span className="loading loading-spinner"></span> : count}
       </div>
-      <div className="stat-desc">Data refresh setiap 10 detik</div>
     </div>
   );
 }

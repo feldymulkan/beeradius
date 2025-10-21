@@ -20,6 +20,8 @@
     "react-dom": "19.1.0",
     "react-hook-form": "^7.65.0",
     "react-hot-toast": "^2.6.0",
+    "theme-change": "^2.5.0",
+    "use-debounce": "^10.0.6",
     "zod": "^4.1.12"
   },
   "devDependencies": {
