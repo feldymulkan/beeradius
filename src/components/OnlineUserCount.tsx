@@ -11,7 +11,7 @@ export default function OnlineUserCount() {
 
   const fetchOnlineUsers = async () => {
     try {
-      const res = await fetch('/api/radius/online-users');
+      const res = await fetch('/api/radius/users/online-users');
       if (!res.ok) throw new Error("Gagal fetch data");
       const data = await res.json();
       setCount(data.onlineCount);

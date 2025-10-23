@@ -57,8 +57,6 @@ export default function DeleteButton({ itemId, apiEndpoint, itemName, entityType
       <div className="modal modal-bottom sm:modal-middle" role="dialog">
         <div className="modal-box">
           <h3 className="font-bold text-lg">Konfirmasi Penghapusan</h3>
-          {/* --- PERBAIKAN DI SINI --- */}
-          {/* Mengganti ' dengan &apos; untuk memperbaiki error ESLint */}
           <p className="py-4">Apakah Anda yakin ingin menghapus {entityType} &apos;{itemName}&apos;? Tindakan ini tidak dapat dibatalkan.</p>
           <div className="modal-action">
             <button className="btn" onClick={() => setIsModalOpen(false)} disabled={isLoading}>Batal</button>
