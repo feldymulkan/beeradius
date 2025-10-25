@@ -3,13 +3,21 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { EditFormSkeleton } from "@/components/Skleton";
+import { EditFormSkeleton } from "@/components/Skleton"; // Asumsi path Skleton benar
+import toast from "react-hot-toast";
 
-type Attribute = {
-  id?: number; 
+// Tipe data untuk atribut 'reply'
+type ReplyAttribute = {
+  id?: number;
   attribute: string;
   op: string;
   value: string;
+};
+
+// [PERBAIKAN] Tipe data respons dari API GET Anda
+type GroupDataResponse = {
+  replyAttributes: ReplyAttribute[];
+  simultaneousUse: string;
 };
 
 export default function EditGroupPage() {
@@ -19,17 +27,19 @@ export default function EditGroupPage() {
 
   // State untuk form
   const [newGroupname, setNewGroupname] = useState(originalGroupname);
-  const [attributes, setAttributes] = useState<Attribute[]>([]);
   
-  // State khusus untuk speed agar UI lebih baik
+  // State khusus untuk speed
   const [uploadSpeed, setUploadSpeed] = useState("");
   const [downloadSpeed, setDownloadSpeed] = useState("");
+
+  // [PERBAIKAN] State baru untuk batas perangkat
+  const [simultaneousUse, setSimultaneousUse] = useState("");
 
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch data dan ekstrak speed
+  // [PERBAIKAN] Fetch data dan ekstrak speed + simultaneousUse
   useEffect(() => {
     if (originalGroupname) {
       const fetchGroupData = async () => {
@@ -37,11 +47,18 @@ export default function EditGroupPage() {
         try {
           const res = await fetch(`/api/radius/groups/${originalGroupname}`);
           if (!res.ok) throw new Error("Gagal memuat data grup.");
-          const data: Attribute[] = await res.json();
-          setAttributes(data);
+          
+          // [PERBAIKAN] Tangani respons objek yang baru
+          const data: GroupDataResponse = await res.json();
+          
+          // Set state batas perangkat
+          setSimultaneousUse(data.simultaneousUse || "");
 
-          // Cari atribut Mikrotik-Rate-Limit dan ekstrak nilainya
-          const rateLimitAttr = data.find(attr => attr.attribute === 'Mikrotik-Rate-Limit');
+          // Cari atribut Mikrotik-Rate-Limit dari 'replyAttributes'
+          const rateLimitAttr = data.replyAttributes.find(
+            (attr) => attr.attribute === 'Mikrotik-Rate-Limit'
+          );
+          
           if (rateLimitAttr && rateLimitAttr.value.includes('/')) {
             const [up, down] = rateLimitAttr.value.replace(/M/g, '').split('/');
             setUploadSpeed(up || "");
@@ -63,36 +80,40 @@ export default function EditGroupPage() {
     setIsLoading(true);
     setError(null);
 
-    // --- Logika untuk menyusun kembali atribut sebelum kirim ---
-    const finalAttributes = [...attributes];
-    const rateLimitIndex = finalAttributes.findIndex(attr => attr.attribute === 'Mikrotik-Rate-Limit');
-    
-    // Buat value baru untuk rate limit
+    // Buat ulang atribut 'reply' (hanya rate-limit untuk saat ini)
     const rateLimitValue = `${uploadSpeed || 0}M/${downloadSpeed || 0}M`;
+    const finalAttributes = [
+        { attribute: 'Mikrotik-Rate-Limit', op: ':=', value: rateLimitValue }
+    ];
 
-    if (rateLimitIndex > -1) {
-      // Jika atribut sudah ada, update nilainya
-      finalAttributes[rateLimitIndex].value = rateLimitValue;
-    } else if (uploadSpeed || downloadSpeed) {
-      // Jika belum ada tapi speed diisi, tambahkan atribut baru
-      finalAttributes.push({ attribute: 'Mikrotik-Rate-Limit', op: ':=', value: rateLimitValue });
-    }
-    // -----------------------------------------------------------
+    // [PERBAIKAN] Siapkan body payload lengkap untuk API PUT
+    const bodyPayload = {
+        newGroupname,
+        attributes: finalAttributes,
+        simultaneousUse: simultaneousUse // <-- Kirim data batas perangkat
+    };
 
     try {
       const res = await fetch(`/api/radius/groups/${originalGroupname}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newGroupname, attributes: finalAttributes }),
+        body: JSON.stringify(bodyPayload), // Kirim payload lengkap
       });
+      
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.message || "Gagal mengupdate grup.");
       }
+      
+      toast.success("Grup berhasil diupdate!"); // Tambahkan notifikasi
       router.push("/radius-groups");
       router.refresh();
+      
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
+      if (err instanceof Error) {
+        setError(err.message);
+        toast.error(err.message); // Tampilkan error di toast
+      }
     } finally {
       setIsLoading(false);
     }
@@ -107,12 +128,27 @@ export default function EditGroupPage() {
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Input Nama Grup yang sudah bisa diedit */}
+              
               <div className="form-control w-full">
                 <label className="label"><span className="label-text font-bold">Nama Grup</span></label>
                 <input type="text" value={newGroupname} onChange={(e) => setNewGroupname(e.target.value)} className="input input-bordered w-full" required />
               </div>
               
+              {/* [PERBAIKAN] Input baru untuk Batas Perangkat */}
+              <div className="form-control w-full">
+                <label className="label">
+                  <span className="label-text font-bold">Batas Perangkat (Simultaneous-Use)</span>
+                </label>
+                <input 
+                  type="number" 
+                  value={simultaneousUse} 
+                  onChange={(e) => setSimultaneousUse(e.target.value)} 
+                  className="input input-bordered w-full" 
+                  placeholder="Contoh: 2 (Kosongkan jika tidak ada batas)"
+                  min="0"
+                />
+              </div>
+
               {/* Input khusus untuk Kecepatan */}
               <div>
                 <label className="label"><span className="label-text font-bold">Batas Kecepatan (Mikrotik-Rate-Limit)</span></label>
@@ -126,7 +162,6 @@ export default function EditGroupPage() {
                         <input type="number" value={downloadSpeed} onChange={e => setDownloadSpeed(e.target.value)} className="input input-bordered w-full" placeholder="Contoh: 10" />
                     </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Atribut lain yang tidak terkait kecepatan tidak akan ditampilkan di sini, namun akan tetap tersimpan.</p>
               </div>
 
               {error && <div className="alert alert-error">{error}</div>}

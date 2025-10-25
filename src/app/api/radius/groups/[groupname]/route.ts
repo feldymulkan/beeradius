@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
+// [PERUBAHAN] Tipe data untuk body PUT yang baru
+interface PutRequestBody {
+  newGroupname: string;
+  attributes: { attribute: string; op: string; value: string }[];
+  simultaneousUse?: string; // <-- Atribut baru untuk batas device
+}
+
+/**
+ * [PERBAIKAN] Mengambil data grup dari KEDUA tabel (reply dan check)
+ */
 export async function GET(
     _request: NextRequest,
     context: { params: Promise<{ groupname: string }> }
@@ -9,6 +19,7 @@ export async function GET(
         const params = await context.params;
         const groupname = decodeURIComponent(params.groupname).trim();
 
+        // Ambil data dari kedua tabel
         const [replyAttributes, checkAttributes] = await Promise.all([
             prisma.radgroupreply.findMany({ where: { groupname } }),
             prisma.radgroupcheck.findMany({ where: { groupname } }),
@@ -22,8 +33,18 @@ export async function GET(
             );
         }
 
-        // Kembalikan hanya atribut 'reply' karena form edit saat ini hanya mengelola itu
-        return NextResponse.json(replyAttributes, { status: 200 });
+        // [PERUBAHAN] Cari nilai 'Simultaneous-Use' dari checkAttributes
+        const simultaneousUseAttr = checkAttributes.find(
+            (attr) => attr.attribute === 'Simultaneous-Use'
+        );
+
+        // [PERUBAHAN] Kembalikan objek gabungan
+        const groupData = {
+            replyAttributes: replyAttributes,
+            simultaneousUse: simultaneousUseAttr ? simultaneousUseAttr.value : "" // Kirim nilainya (misal "2")
+        };
+
+        return NextResponse.json(groupData, { status: 200 });
 
     } catch (error: unknown) {
         let errorMessage = "Terjadi kesalahan pada server.";
@@ -39,9 +60,7 @@ export async function GET(
 }
 
 /**
- * [IMPROVED] Mengupdate sebuah grup, termasuk mengganti namanya.
- * Membersihkan atribut dari 'radgroupcheck' dan 'radgroupreply'
- * dan memperbarui relasi di 'radusergroup'.
+ * [PERBAIKAN] Mengupdate grup, sekarang termasuk 'Simultaneous-Use'.
  */
 export async function PUT(
   request: NextRequest,
@@ -51,22 +70,24 @@ export async function PUT(
     const params = await context.params;
     const oldGroupname = decodeURIComponent(params.groupname).trim();
 
-    const body = await request.json();
-    const { newGroupname, attributes } = body;
+    // [PERUBAHAN] Terapkan interface baru dan ambil 'simultaneousUse'
+    const body: PutRequestBody = await request.json();
+    const { newGroupname, attributes, simultaneousUse } = body;
 
     if (!newGroupname || !attributes) {
         return NextResponse.json({ message: "Nama grup baru dan atribut harus ada." }, { status: 400 });
     }
 
+    // Cek duplikat jika nama berubah (cek di kedua tabel)
     if (oldGroupname !== newGroupname) {
-      const existingGroup = await prisma.radgroupreply.findFirst({
-        where: { groupname: newGroupname },
-      });
-      if (existingGroup) {
+      const existingReply = await prisma.radgroupreply.findFirst({ where: { groupname: newGroupname } });
+      const existingCheck = await prisma.radgroupcheck.findFirst({ where: { groupname: newGroupname } });
+      if (existingReply || existingCheck) {
         return NextResponse.json({ message: `Grup dengan nama '${newGroupname}' sudah ada.` }, { status: 409 });
       }
     }
 
+    // Siapkan atribut 'reply'
     const newAttributesData = attributes.map((attr: { attribute: string; op: string; value: string }) => ({
       groupname: newGroupname,
       attribute: attr.attribute,
@@ -74,25 +95,49 @@ export async function PUT(
       value: attr.value,
     }));
 
-    await prisma.$transaction([
-      // 1. Hapus semua atribut lama dari kedua tabel
+    // [PERUBAHAN] Siapkan array 'operations' untuk transaksi
+    const operations: any[] = [
+      // 1. Hapus semua atribut reply lama
       prisma.radgroupreply.deleteMany({ where: { groupname: oldGroupname } }),
+      // 2. Hapus semua atribut check lama
       prisma.radgroupcheck.deleteMany({ where: { groupname: oldGroupname } }),
-
-      // 2. Buat semua atribut baru (saat ini hanya untuk reply)
+      // 3. Buat semua atribut reply baru
       prisma.radgroupreply.createMany({ data: newAttributesData }),
 
-      // 3. Update nama grup di tabel user
+      // 4. Update nama grup di tabel user (jika nama berubah)
       prisma.radusergroup.updateMany({
           where: { groupname: oldGroupname },
           data: { groupname: newGroupname }
       })
-    ]);
+    ];
+
+    // [PERUBAHAN] Operasi 5: Tambahkan 'Simultaneous-Use' baru jika ada
+    if (simultaneousUse && simultaneousUse.trim() !== "") {
+        operations.push(
+            prisma.radgroupcheck.create({
+                data: {
+                    groupname: newGroupname,
+                    attribute: 'Simultaneous-Use',
+                    op: ':=',
+                    value: simultaneousUse
+                }
+            })
+        );
+    }
+
+    // Jalankan semua operasi sebagai satu transaksi
+    await prisma.$transaction(operations);
 
     return NextResponse.json({ message: `Grup '${oldGroupname}' berhasil diupdate menjadi '${newGroupname}'.` }, { status: 200 });
 
   } catch (error: unknown) {
     let errorMessage = "Terjadi kesalahan pada server.";
+     if (typeof error === 'object' && error !== null && 'code' in error) {
+        if (error.code === 'P2002') {
+            errorMessage = `Grup dengan nama tersebut sudah ada.`;
+            return NextResponse.json({ message: "Gagal mengupdate grup.", error: errorMessage }, { status: 409 });
+        }
+    }
     if (error instanceof Error) {
         errorMessage = error.message;
     }
@@ -103,7 +148,7 @@ export async function PUT(
 
 /**
  * [IMPROVED] Menghapus grup dari semua tabel terkait.
- * Sekarang juga membersihkan data di 'radusergroup' untuk mencegah data yatim.
+ * (Fungsi DELETE Anda sudah benar dan tidak perlu diubah)
  */
 export async function DELETE(
     _requests: NextRequest,
@@ -116,7 +161,7 @@ export async function DELETE(
         const [replyResult, checkResult, userGroupResult] = await prisma.$transaction([
             prisma.radgroupreply.deleteMany({ where: { groupname } }),
             prisma.radgroupcheck.deleteMany({ where: { groupname } }),
-            prisma.radusergroup.deleteMany({ where: { groupname } }), // <-- Termasuk radusergroup
+            prisma.radusergroup.deleteMany({ where: { groupname } }),
         ]);
 
         const totalDeleted = replyResult.count + checkResult.count + userGroupResult.count;
